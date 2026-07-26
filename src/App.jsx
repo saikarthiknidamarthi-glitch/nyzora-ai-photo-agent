@@ -46,7 +46,7 @@ export default function App() {
       });
 
       const response = await fetch(
-        "http://localhost:5678/webhook/upload-image",
+        "https://twilight-stumbling-yearly.ngrok-free.dev/webhook/upload-image",
         {
           method: "POST",
           body: formData,
@@ -54,6 +54,10 @@ export default function App() {
       );
 
       console.log("HTTP Status:", response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
       const result = await response.json();
 
@@ -92,11 +96,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-6">
-
         <Header />
 
         <div className="w-full max-w-2xl rounded-3xl border border-zinc-800 bg-zinc-900 p-10">
-
           <ModeToggle
             mode={mode}
             setMode={setMode}
@@ -129,9 +131,7 @@ export default function App() {
           >
             Analyze Photos
           </button>
-
         </div>
-
       </div>
     </div>
   );

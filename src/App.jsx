@@ -1,5 +1,4 @@
 import { useState } from "react";
-
 import Header from "./components/Header";
 import ModeToggle from "./components/ModeToggle";
 import UploadArea from "./components/UploadArea";
@@ -11,127 +10,65 @@ export default function App() {
   const [mode, setMode] = useState("quick");
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [analysis, setAnalysis] = useState(null);
+  const [result, setResult] = useState(null);
 
-  function handleFileSelect(event) {
-    const selectedFiles = Array.from(event.target.files);
-
-    if (selectedFiles.length > 3) {
-      alert("Maximum 3 photos allowed.");
-    }
-
-    setFiles(selectedFiles.slice(0, 3));
-  }
-
-  function removeImage(index) {
-    setFiles(files.filter((_, i) => i !== index));
-  }
-
-  async function handleAnalyze() {
-    if (files.length === 0) {
-      alert("Please select at least one image.");
-      return;
-    }
+  const handleAnalyze = async () => {
+    if (!files.length) return alert("Select images");
 
     setLoading(true);
 
     try {
-      const formData = new FormData();
+      const fd = new FormData();
+      fd.append("Request Type", "Image");
+      fd.append("mode", mode);
+      files.forEach(f => fd.append("images", f));
 
-      formData.append("Request Type", "Image");
-      formData.append("mode", mode);
-
-      files.forEach((file) => {
-        formData.append("images", file);
-      });
-
-      const response = await fetch(
+      const res = await fetch(
         "https://twilight-stumbling-yearly.ngrok-free.dev/webhook/upload-image",
         {
           method: "POST",
-          body: formData,
+          body: fd,
         }
       );
 
-      console.log("HTTP Status:", response.status);
+      let api = await res.json();
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      if (Array.isArray(api)) api = api[0];
 
-      const result = await response.json();
+      setResult({
+        success: api.success ?? api["success "],
+        edited: api.edited ?? api["edited "],
+        score: api.score ?? api["score "],
+        analysis: api.analysis ?? api["analysis "],
+        photo_ratings: api.photo_ratings,
+      });
 
-      console.log("========== N8N RESPONSE ==========");
-      console.log(result);
-      console.log("=================================");
-
-      const analysisData =
-        result.analysis ??
-        result["analysis"] ??
-        result["analysis "];
-
-      if (!analysisData) {
-        console.error("Analysis not found!", result);
-        alert("Analysis not found.");
-        return;
-      }
-
-      setAnalysis(analysisData);
-    } catch (error) {
-      console.error(error);
-      alert("Failed to connect to AI.");
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.error(e);
+      alert("API Error");
     }
-  }
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+    setLoading(false);
+  };
 
-  if (analysis) {
-    return <ResultDashboard analysis={analysis} />;
-  }
+  if (loading) return <LoadingScreen />;
+
+  if (result)
+    return <ResultDashboard {...result} />;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-6">
+      <div className="mx-auto max-w-5xl p-8">
         <Header />
-
-        <div className="w-full max-w-2xl rounded-3xl border border-zinc-800 bg-zinc-900 p-10">
-          <ModeToggle
-            mode={mode}
-            setMode={setMode}
-          />
-
-          <div className="mb-6 text-center text-sm text-zinc-400">
-            Current Mode :
-            <span className="ml-2 font-semibold capitalize text-indigo-400">
-              {mode}
-            </span>
-          </div>
-
-          <UploadArea
-            onFileSelect={handleFileSelect}
-          />
-
-          <ImagePreview
-            files={files}
-            removeImage={removeImage}
-          />
-
-          <button
-            onClick={handleAnalyze}
-            disabled={files.length === 0}
-            className={`mt-8 w-full rounded-xl py-4 text-lg font-semibold transition ${
-              files.length === 0
-                ? "cursor-not-allowed bg-zinc-700 text-zinc-400"
-                : "bg-indigo-600 hover:bg-indigo-500"
-            }`}
-          >
-            Analyze Photos
-          </button>
-        </div>
+        <ModeToggle mode={mode} setMode={setMode} />
+        <UploadArea onFileSelect={e => setFiles([...e.target.files].slice(0,3))}/>
+        <ImagePreview files={files} removeImage={i=>setFiles(files.filter((_,x)=>x!==i))}/>
+        <button
+          onClick={handleAnalyze}
+          className="mt-6 w-full rounded-xl bg-indigo-600 py-4"
+        >
+          Analyze Photos
+        </button>
       </div>
     </div>
   );
